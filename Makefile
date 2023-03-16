@@ -29,13 +29,17 @@ client: client.c
 
 test: all
 	sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+	sudo sh performance.sh
 	sudo sh -c "echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo"
 	$(MAKE) unload
 	$(MAKE) load
-	sudo taskset 0x2 ./test_time
+	sudo taskset 0x1 ./test_time
 	$(MAKE) unload
-	sudo sh -c "echo 1 > /proc/sys/kernel/randomize_va_space"
-	sudo sh -c "echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo"
+	python3 scripts/plot.py
+
+compile_test:
+	gcc -c test_time.c -o test_time.o
+	gcc test_time.o -o test_time
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m

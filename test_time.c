@@ -9,9 +9,13 @@
 
 int main()
 {
+    FILE *fptr;
+    fptr = fopen("data.txt", "w");
+    if (!fptr)
+        return 0;
     char buf[1];
     char write_buf[] = "testing writing";
-    int offset = 92; /* TODO: try test something bigger than the limit */
+    int offset = 100; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -28,9 +32,11 @@ int main()
                "%lld.\n",
                i, sz);
         kt = write(fd, write_buf, 0);
+        fprintf(fptr, "%lld\n", kt);
         printf("Time taken to calculate the sequence %lld.\n", kt);
     }
 
+    fclose(fptr);
     close(fd);
     return 0;
 }
