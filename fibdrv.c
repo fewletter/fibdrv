@@ -25,19 +25,29 @@ static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 static ktime_t kt;
 
+
 static long long fib_sequence(long long k)
 {
     /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
-    long long f[k + 2];
+    if (k < 2)
+        return k;
 
+    long long f[2];
     f[0] = 0;
     f[1] = 1;
 
-    for (int i = 2; i <= k; i++) {
-        f[i] = f[i - 1] + f[i - 2];
+    for (uint8_t i = 1U << 7; i; i >>= 1) {
+        long long n0 = f[0] * (f[1] * 2 - f[0]);
+        long long n1 = f[0] * f[0] + f[1] * f[1];
+        if (k & i) {
+            f[0] = n1;
+            f[1] = n0 + n1;
+        } else {
+            f[0] = n0;
+            f[1] = n1;
+        }
     }
-
-    return f[k];
+    return f[0];
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -62,9 +72,9 @@ static ssize_t fib_read(struct file *file,
                         loff_t *offset)
 {
     ktime_t start = ktime_get();
-    long long result = fib_sequence(*offset);
+    fib_sequence(*offset);
     kt = ktime_sub(ktime_get(), start);
-    return (ssize_t) result;
+    return (ssize_t) fib_sequence(*offset);
 }
 
 /* write operation is skipped */
