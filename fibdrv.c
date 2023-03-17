@@ -36,16 +36,14 @@ static long long fib_sequence(long long k)
     f[0] = 0;
     f[1] = 1;
 
-    for (uint8_t i = 1U << 7; i; i >>= 1) {
+    for (uint32_t i = 1UL << 31; i; i >>= 1) {
         long long n0 = f[0] * (f[1] * 2 - f[0]);
         long long n1 = f[0] * f[0] + f[1] * f[1];
-        if (k & i) {
-            f[0] = n1;
-            f[1] = n0 + n1;
-        } else {
-            f[0] = n0;
-            f[1] = n1;
-        }
+
+        uint64_t mask = !(k & i) - 1;
+        f[0] = (n0 & ~mask) + (n1 & mask);
+        f[1] = (n0 & mask) + n1;
+        ;
     }
     return f[0];
 }
