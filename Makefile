@@ -37,6 +37,15 @@ test: all
 	$(MAKE) unload
 	python3 scripts/plot.py
 
+test_all:
+	sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+	sudo sh performance.sh
+	sudo sh -c "echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo"
+	$(MAKE) unload
+	$(MAKE) load
+	python3 scripts/auto_run.py
+	$(MAKE) unload
+
 compile_test:
 	gcc -c test_time.c -o test_time.o
 	gcc test_time.o -o test_time
