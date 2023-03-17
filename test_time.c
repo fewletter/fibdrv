@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
+
 
 int main()
 {
@@ -25,14 +27,24 @@ int main()
 
     for (int i = 0; i <= offset; i++) {
         long long sz, kt;
+        struct timespec t1, t2;
         lseek(fd, i, SEEK_SET);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
         sz = read(fd, buf, 1);
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%lld.\n",
                i, sz);
-        kt = write(fd, write_buf, 0);
-        fprintf(fptr, "%lld\n", kt);
+
+        kt = write(fd, write_buf, strlen(write_buf));
+        long long ut = (long long) (t2.tv_sec * 1e9 + t2.tv_nsec) -
+                       (t1.tv_sec * 1e9 + t1.tv_nsec);
+
+
+        fprintf(fptr, "%d %lld %lld %lld\n", i, ut, kt, ut - kt);
+        printf("The usertime of sequence %lld.\n", ut);
         printf("Time taken to calculate the sequence %lld.\n", kt);
     }
 
