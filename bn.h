@@ -20,9 +20,6 @@ void bn_init(struct _bn *bign, int _size)
 {
     bign->size = _size;
     bign->number = kmalloc(_size * sizeof(unsigned int), GFP_KERNEL);
-
-    if (bign->number == NULL)
-        return -ENOMEM;
 }
 
 void bn_set32(struct _bn *bign, unsigned int _num)

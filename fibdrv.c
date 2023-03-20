@@ -74,7 +74,6 @@ static ssize_t fib_read(struct file *file,
     bn *fib = bn_alloc(1);
     ktime_t k1 = ktime_get();
     bn_fib(fib, *offset);
-    (fib, *offset);
     ktime_t k2 = ktime_sub(ktime_get(), k1);
     char *p = bn_to_string(*fib);
     size_t len = strlen(p) + 1;
