@@ -6,6 +6,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
+
+#include "bn.h"
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
@@ -17,7 +20,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 100
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -26,25 +29,25 @@ static DEFINE_MUTEX(fib_mutex);
 static ktime_t kt;
 
 
-static long long fib_sequence(long long k)
+void bn_fib(bn *dest, unsigned int n)
 {
-    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
-    if (k < 2)
-        return k;
-
-    long long f[2];
-    f[0] = 0;
-    f[1] = 1;
-
-    for (uint32_t i = 1UL << (31 - __builtin_clz(k)); i; i >>= 1) {
-        long long n0 = f[0] * ((f[1] << 1) - f[0]);
-        long long n1 = f[0] * f[0] + f[1] * f[1];
-
-        uint64_t mask = !(k & i) - 1;
-        f[0] = (n0 & ~mask) + (n1 & mask);
-        f[1] = (n0 & mask) + n1;
+    bn_resize(dest, 1);
+    if (n < 2) {  // Fib(0) = 0, Fib(1) = 1
+        dest->number[0] = n;
+        return;
     }
-    return f[0];
+
+    bn *a = bn_alloc(1);
+    bn *b = bn_alloc(1);
+    dest->number[0] = 1;
+
+    for (unsigned int i = 1; i < n; i++) {
+        bn_swap(b, dest);
+        bn_add(a, b, dest);
+        bn_swap(a, b);
+    }
+    bn_free(a);
+    bn_free(b);
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -62,16 +65,22 @@ static int fib_release(struct inode *inode, struct file *file)
     return 0;
 }
 
-/* calculate the fibonacci number at given offset */
+/* calculate the fibonacci number at given     */
 static ssize_t fib_read(struct file *file,
                         char *buf,
                         size_t size,
                         loff_t *offset)
 {
-    ktime_t start = ktime_get();
-    fib_sequence(*offset);
-    kt = ktime_sub(ktime_get(), start);
-    return (ssize_t) fib_sequence(*offset);
+    bn *fib = bn_alloc(1);
+    ktime_t k1 = ktime_get();
+    bn_fib(fib, *offset);
+    (fib, *offset);
+    ktime_t k2 = ktime_sub(ktime_get(), k1);
+    char *p = bn_to_string(*fib);
+    size_t len = strlen(p) + 1;
+    copy_to_user(buf, p, len);
+    bn_free(fib);
+    return ktime_to_ns(k2);
 }
 
 /* write operation is skipped */
