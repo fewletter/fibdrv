@@ -20,7 +20,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 100
+#define MAX_LENGTH 500
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -28,26 +28,32 @@ static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 static ktime_t kt;
 
-
-void bn_fib(bn *dest, unsigned int n)
+int fibn_per_32bit(int k)
 {
-    bn_resize(dest, 1);
-    if (n < 2) {  // Fib(0) = 0, Fib(1) = 1
-        dest->number[0] = n;
+    return k < 2 ? 1 : ((long) k * 694242 - 1160964) / (1000000) + 1;
+}
+
+void bn_fib(bn *ret, unsigned int n)
+{
+    bn_init(ret, fibn_per_32bit(n));
+    if (n < 2) {
+        ret->number[0] = n;
         return;
     }
 
-    bn *a = bn_alloc(1);
-    bn *b = bn_alloc(1);
-    dest->number[0] = 1;
+    bn *f1 = bn_alloc(fibn_per_32bit(n));
+    bn *tmp = bn_alloc(fibn_per_32bit(n));
+    ret->number[0] = 0;
+    f1->number[0] = 1;
 
-    for (unsigned int i = 1; i < n; i++) {
-        bn_swap(b, dest);
-        bn_add(a, b, dest);
-        bn_swap(a, b);
+    for (unsigned int i = 1; i < n + 1; i++) {
+        bn_add(ret, f1, tmp);
+        bn_swap(f1, ret);
+        bn_swap(f1, tmp);
     }
-    bn_free(a);
-    bn_free(b);
+
+    bn_free(f1);
+    bn_free(tmp);
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -71,7 +77,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    bn *fib = bn_alloc(1);
+    bn *fib = bn_alloc(3);
     ktime_t k1 = ktime_get();
     bn_fib(fib, *offset);
     ktime_t k2 = ktime_sub(ktime_get(), k1);

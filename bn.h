@@ -11,15 +11,12 @@ typedef struct _bn {
     unsigned int size;
 } bn;
 
-int fibn_per_32bit(int n)
-{
-    return n < 2 ? 1 : ((-1160964 + n * 694242) / (10 * 6) + 1);
-}
-
 void bn_init(struct _bn *bign, int _size)
 {
+    bign = (bn *) kmalloc(sizeof(bn), GFP_KERNEL);
     bign->size = _size;
     bign->number = kmalloc(_size * sizeof(unsigned int), GFP_KERNEL);
+    memset(bign->number, 0, sizeof(int) * _size);
 }
 
 void bn_set32(struct _bn *bign, unsigned int _num)
