@@ -20,7 +20,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 500
+#define MAX_LENGTH 100000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -35,14 +35,15 @@ int fibn_per_32bit(int k)
 
 void bn_fib(bn *ret, unsigned int n)
 {
-    bn_init(ret, fibn_per_32bit(n));
+    int nsize = fibn_per_32bit(n) / 32 + 1;
+    bn_resize(ret, nsize);
     if (n < 2) {
         ret->number[0] = n;
         return;
     }
 
-    bn *f1 = bn_alloc(fibn_per_32bit(n));
-    bn *tmp = bn_alloc(fibn_per_32bit(n));
+    bn *f1 = bn_alloc(nsize);
+    bn *tmp = bn_alloc(nsize);
     ret->number[0] = 0;
     f1->number[0] = 1;
 
@@ -77,15 +78,15 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    bn *fib = bn_alloc(3);
+    bn *fib = bn_alloc(1);
     ktime_t k1 = ktime_get();
     bn_fib(fib, *offset);
-    ktime_t k2 = ktime_sub(ktime_get(), k1);
+    kt = ktime_sub(ktime_get(), k1);
     char *p = bn_to_string(*fib);
     size_t len = strlen(p) + 1;
     copy_to_user(buf, p, len);
     bn_free(fib);
-    return ktime_to_ns(k2);
+    return ktime_to_ns(kt);
 }
 
 /* write operation is skipped */
@@ -94,7 +95,7 @@ static ssize_t fib_write(struct file *file,
                          size_t size,
                          loff_t *offset)
 {
-    return (ssize_t) kt;
+    return (ssize_t) ktime_to_ns(kt);
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
