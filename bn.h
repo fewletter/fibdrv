@@ -174,6 +174,14 @@ static void bn_mult_add(bn *c, int offset, unsigned long long int x)
     }
 }
 
+int bn_cpy(bn *dest, bn *src)
+{
+    if (bn_resize(dest, src->size) < 0)
+        return -1;
+    memcpy(dest->number, src->number, src->size * sizeof(int));
+    return 0;
+}
+
 void bn_mult(const bn *a, const bn *b, bn *c)
 {
     // max digits = sizeof(a) + sizeof(b))
