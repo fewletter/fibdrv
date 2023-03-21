@@ -1,6 +1,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define DIV_ROUNDUP(x, len) (((x) + (len) -1) / (len))
 
 #ifndef __BN_H_
 #define __BN_H_
@@ -11,9 +13,31 @@ typedef struct _bn {
     unsigned int size;
 } bn;
 
+/* count leading zeros of src*/
+static int bn_clz(const bn *src)
+{
+    int cnt = 0;
+    for (int i = src->size - 1; i >= 0; i--) {
+        if (src->number[i]) {
+            // prevent undefined behavior when src = 0
+            cnt += __builtin_clz(src->number[i]);
+            return cnt;
+        } else {
+            cnt += 32;
+        }
+    }
+    return cnt;
+}
+
+/* count the digits of most significant bit */
+static int bn_msb(const bn *src)
+{
+    return src->size * 32 - bn_clz(src);
+}
+
 void bn_init(struct _bn *bign, int _size)
 {
-    bign = (bn *) kmalloc(sizeof(bn), GFP_KERNEL);
+    bign = kmalloc(sizeof(bn), GFP_KERNEL);
     bign->size = _size;
     bign->number = kmalloc(_size * sizeof(unsigned int), GFP_KERNEL);
     memset(bign->number, 0, sizeof(int) * _size);
@@ -29,7 +53,7 @@ void bn_set32(struct _bn *bign, unsigned int _num)
 
 bn *bn_alloc(size_t size)
 {
-    bn *new = (bn *) kmalloc(sizeof(bn), GFP_KERNEL);
+    bn *new = kmalloc(sizeof(bn), GFP_KERNEL);
     new->number = kmalloc(sizeof(int) * size, GFP_KERNEL);
     memset(new->number, 0, sizeof(int) * size);
     new->size = size;
@@ -109,6 +133,74 @@ static int bn_resize(bn *src, size_t size)
         memset(src->number + src->size, 0, sizeof(int) * (size - src->size));
     src->size = size;
     return 0;
+}
+
+static void bn_do_sub(const bn *a, const bn *b, bn *c)
+{
+    // max digits = max(sizeof(a) + sizeof(b))
+    int d = MAX(a->size, b->size);
+    bn_resize(c, d);
+
+    long long int carry = 0;
+    for (int i = 0; i < c->size; i++) {
+        unsigned int tmp1 = (i < a->size) ? a->number[i] : 0;
+        unsigned int tmp2 = (i < b->size) ? b->number[i] : 0;
+        carry = (long long int) tmp1 - tmp2 - carry;
+        if (carry < 0) {
+            c->number[i] = carry + (1LL << 32);
+            carry = 1;
+        } else {
+            c->number[i] = carry;
+            carry = 0;
+        }
+    }
+
+    d = bn_clz(c) / 32;
+    if (d == c->size)
+        --d;
+    bn_resize(c, c->size - d);
+}
+
+static void bn_mult_add(bn *c, int offset, unsigned long long int x)
+{
+    unsigned long long int carry = 0;
+    for (int i = offset; i < c->size; i++) {
+        carry += c->number[i] + (x & 0xFFFFFFFF);
+        c->number[i] = carry;
+        carry >>= 32;
+        x >>= 32;
+        if (!x && !carry)  // done
+            return;
+    }
+}
+
+void bn_mult(const bn *a, const bn *b, bn *c)
+{
+    // max digits = sizeof(a) + sizeof(b))
+    int d = bn_msb(a) + bn_msb(b);
+    d = DIV_ROUNDUP(d, 32) + !d;  // round up, min size = 1
+    bn *tmp;
+    /* make it work properly when c == a or c == b */
+    if (c == a || c == b) {
+        tmp = c;  // save c
+        c = bn_alloc(d);
+    } else {
+        tmp = NULL;
+        bn_resize(c, d);
+    }
+
+    for (int i = 0; i < a->size; i++) {
+        for (int j = 0; j < b->size; j++) {
+            unsigned long long int carry = 0;
+            carry = (unsigned long long int) a->number[i] * b->number[j];
+            bn_mult_add(c, i + j, carry);
+        }
+    }
+
+    if (tmp) {
+        bn_cpy(tmp, c);  // restore c
+        bn_free(c);
+    }
 }
 
 #endif
