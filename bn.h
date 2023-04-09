@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#define MAX_32BIT 4294967295
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define DIV_ROUNDUP(x, len) (((x) + (len) -1) / (len))
 
@@ -105,18 +106,6 @@ void bn_swap(bn *a, bn *b)
     *b = tmp;
 }
 
-void bn_add(bn *a, bn *b, bn *c)
-{
-    unsigned long long int carry = 0;
-    for (int i = 0; i < c->size; i++) {
-        unsigned int tmp1 = (i < a->size) ? a->number[i] : 0;
-        unsigned int tmp2 = (i < b->size) ? b->number[i] : 0;
-        carry += (unsigned long long int) tmp1 + tmp2;
-        c->number[i] = carry;
-        carry >>= 32;
-    }
-}
-
 static int bn_resize(bn *src, size_t size)
 {
     if (!src)
@@ -135,7 +124,7 @@ static int bn_resize(bn *src, size_t size)
     return 0;
 }
 
-static void bn_do_sub(const bn *a, const bn *b, bn *c)
+static void bn_sub(const bn *a, const bn *b, bn *c)
 {
     // max digits = max(sizeof(a) + sizeof(b))
     int d = MAX(a->size, b->size);
@@ -208,6 +197,48 @@ void bn_mult(const bn *a, const bn *b, bn *c)
     if (tmp) {
         bn_cpy(tmp, c);  // restore c
         bn_free(c);
+    }
+}
+
+void bn_add(bn *a, bn *b, bn *c)
+{
+    int d = MAX(a->size, b->size);
+    bn_resize(c, d);
+
+    unsigned long long int carry = 0;
+    for (int i = 0; i < c->size; i++) {
+        unsigned int tmp1 = (i < a->size) ? a->number[i] : 0;
+        unsigned int tmp2 = (i < b->size) ? b->number[i] : 0;
+        carry += (unsigned long long int) tmp1 + tmp2;
+        c->number[i] = carry;
+        carry >>= 32;
+    }
+}
+
+static void bn_multSSA(const bn *a, const bn *b, bn *c)
+{
+    /* a*b = c */
+    int d = bn_msb(a) + bn_msb(b);
+    d = DIV_ROUNDUP(d, 32) + !d;  // round up, min size = 1
+    bn_resize(c, d);
+    __uint128_t carry = 0;
+    for (int i = 0; i < c->size; i++) {
+        int j = a->size;
+        while (j >= 0) {
+            unsigned int tmp1 = ((j <= i) && j < a->size) ? a->number[j] : 0;
+            unsigned int tmp2 = ((i - j) < b->size) ? b->number[i - j] : 0;
+            carry += (__uint128_t) tmp1 * tmp2;
+            j--;
+        }
+        c->number[i] = carry;
+        carry >>= 32;
+    }
+}
+
+void bn_reset(bn *bn)
+{
+    for (int i = 0; i < bn->size; i++) {
+        bn->number[i] = 0;
     }
 }
 
