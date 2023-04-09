@@ -20,7 +20,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 100000
+#define MAX_LENGTH 5000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -57,6 +57,49 @@ void bn_fib(bn *ret, unsigned int n)
     bn_free(tmp);
 }
 
+void bn_fastdoub_fib(bn *ret, unsigned int n)
+{
+    int nsize = fibn_per_32bit(n) / 32 + 1;
+    bn_resize(ret, nsize);
+    if (n < 2) {
+        ret->number[0] = n;
+        return;
+    }
+
+    bn_reset(ret);
+
+    bn *f1 = bn_alloc(nsize);
+    f1->number[0] = 1;
+    bn *n0 = bn_alloc(nsize);
+    bn *n1 = bn_alloc(nsize);
+
+    for (uint32_t i = 1UL << (31 - __builtin_clz(n)); i; i >>= 1) {
+        bn *tmp1 = bn_alloc(1);
+        bn *tmp2 = bn_alloc(1);
+        bn *tmp3 = bn_alloc(1);
+        /*n0 = f[0] * (f[1] * 2 - f[0]);*/
+        bn_add(f1, f1, n0);
+        bn_sub(n0, ret, n0);
+        bn_multSSA(n0, ret, tmp1);
+        /*n1 = f[0] * f[0] + f[1] * f[1];*/
+        bn_multSSA(ret, ret, tmp2);
+        bn_multSSA(f1, f1, tmp3);
+        bn_add(tmp2, tmp3, n1);
+
+        if (n & i) {
+            bn_cpy(ret, n1);
+            bn_cpy(f1, tmp1);
+            bn_add(f1, n1, f1);
+        } else {
+            bn_cpy(ret, tmp1);
+            bn_cpy(f1, n1);
+        }
+    }
+    bn_free(n0);
+    bn_free(n1);
+    bn_free(f1);
+}
+
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -80,7 +123,7 @@ static ssize_t fib_read(struct file *file,
 {
     bn *fib = bn_alloc(1);
     ktime_t k1 = ktime_get();
-    bn_fib(fib, *offset);
+    bn_fastdoub_fib(fib, *offset);
     kt = ktime_sub(ktime_get(), k1);
     char *p = bn_to_string(*fib);
     size_t len = strlen(p) + 1;
