@@ -29,3 +29,10 @@ dkms.conf
 # test-oriented
 client
 out
+
+# data
+*.png
+*.txt
+*.data
+*.old
+*.sh
