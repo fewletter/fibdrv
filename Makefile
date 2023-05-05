@@ -35,7 +35,6 @@ test: all
 	$(MAKE) load
 	sudo taskset 0x1 ./test_time
 	$(MAKE) unload
-	python3 scripts/plot.py
 
 test_all:
 	sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
