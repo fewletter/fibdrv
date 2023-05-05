@@ -36,3 +36,5 @@ out
 *.data
 *.old
 *.sh
+test_time
+scripts/performance.sh
