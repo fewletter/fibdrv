@@ -16,7 +16,8 @@ int main()
     if (!fptr)
         return 0;
     char buf[1000];
-    int offset = 100; /* TODO: try test something bigger than the limit */
+    char *write_buf = "";
+    int offset = 500; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -25,7 +26,7 @@ int main()
     }
 
     for (int i = 0; i <= offset; i++) {
-        long long sz;
+        long long sz, kt;
         struct timespec t1, t2;
         lseek(fd, i, SEEK_SET);
 
@@ -38,14 +39,14 @@ int main()
                "%s.\n",
                i, buf);
 
-        // kt = write(fd, write_buf, strlen(write_buf));
+        kt = write(fd, write_buf, strlen(write_buf));
         long long ut = (long long) (t2.tv_sec * 1e9 + t2.tv_nsec) -
                        (t1.tv_sec * 1e9 + t1.tv_nsec);
 
 
         fprintf(fptr, "%d %lld %lld %lld\n", i, ut, sz, ut - sz);
         printf("The usertime of sequence %lld.\n", ut);
-        printf("Time taken to calculate the sequence %lld.\n", sz);
+        printf("Time taken to calculate the sequence %lld.\n", kt);
     }
 
     fclose(fptr);
