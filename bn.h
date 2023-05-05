@@ -171,6 +171,7 @@ int bn_cpy(bn *dest, bn *src)
     return 0;
 }
 
+/*The original multiplication*/
 void bn_mult(const bn *a, const bn *b, bn *c)
 {
     // max digits = sizeof(a) + sizeof(b))
@@ -200,6 +201,7 @@ void bn_mult(const bn *a, const bn *b, bn *c)
     }
 }
 
+/*c = a + b*/
 void bn_add(bn *a, bn *b, bn *c)
 {
     int d = MAX(a->size, b->size);
@@ -215,6 +217,7 @@ void bn_add(bn *a, bn *b, bn *c)
     }
 }
 
+/*Use Schönhage–Strassen Algorithm to implement multiplication*/
 static void bn_multSSA(const bn *a, const bn *b, bn *c)
 {
     /* a*b = c */
@@ -235,6 +238,7 @@ static void bn_multSSA(const bn *a, const bn *b, bn *c)
     }
 }
 
+/*To ensure the number to be zero*/
 void bn_reset(bn *bn)
 {
     for (int i = 0; i < bn->size; i++) {
