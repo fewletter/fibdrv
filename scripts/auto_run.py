@@ -25,7 +25,7 @@ if __name__ == "__main__":
     Ys = []
     for i in range(runs):
         comp_proc = subprocess.run('sudo ./test_time', shell = True)
-        output = np.loadtxt('data.txt', dtype = 'float').T
+        output = np.loadtxt('data1.txt', dtype = 'float').T
         Ys.append(np.delete(output, 0, 0))
     X = output[0]
     Y = data_processing(Ys, runs)
@@ -36,9 +36,9 @@ if __name__ == "__main__":
     plt.ylabel('time (ns)', fontsize = 16)
 
     plt.plot(X, Y[0], marker = '+', markersize = 7, label = 'user')
-    plt.plot(X, Y[1], marker = '*', markersize = 3, label = 'kernel')
+    plt.plot(X, Y[1], marker = '*', markersize = 3,label = 'kernel')
     plt.plot(X, Y[2], marker = '^', markersize = 3, label = 'kernel to user')
     plt.legend(loc = 'upper left')
     plt.grid()
-    fig.savefig('after_process.png')
+    fig.savefig('after_process2.png')
 
